@@ -3,7 +3,7 @@
 # remotes::install_github("ropensci/osmdata") # this approach retrieves the latests version of osmdata
 
 library(tidyverse)
-library(osmdata) # package for working with streets
+library(osmdata) # package for working with open street data
 library(showtext) # for custom fonts
 library(ggmap)
 library(rvest)
