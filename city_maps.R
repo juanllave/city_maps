@@ -2,111 +2,237 @@
 # library(remotes)
 # remotes::install_github("ropensci/osmdata") # this approach retrieves the latests version of osmdata
 
-library(tidyverse)
-library(osmdata) # package for working with open street data
-library(showtext) # for custom fonts
-library(ggmap)
-library(rvest)
-library(svglite)
+# Load libraries
+library(tidyverse) # Clean, manipulate, and visualize data efficiently.
+library(osmdata) # Extract geographic data from.
+library(showtext) # To customize fonts
+library(ggmap) # Create maps with geographic data.
+library(rvest) # Scrape web pages for data.
+library(sf) # To work  with simple features (geometry, attributes).
+library(raster) # Handle raster data (images, grids).
+library(lwgeom) # Perform advanced geometry operations.
 
-# Define the city to be mapped
-city <- 'Calgary'
-country <- 'Canada'
+# Define the place the map
+place <- 'Guadalajara Mexico'
 
-# Set the bb for the desired city
-cc <- getbb(paste0(city, ' ', country))
+# Get bbbox
+placebb <- getbb(place)
 
-# Extract the min and max values for both x and y, then add +/- 0.2 to set as plot limits
-x_min <- cc["x", "min"]
-x_max <- cc["x", "max"]
-y_min <- cc["y", "min"]
-y_max <- cc["y", "max"]
-
-x_min <- x_min + 0.2
-x_max <- x_max  - 0.2
-y_min <- y_min + 0.2
-y_max <- y_max - 0.2
-
-# x_min <- x_min * 1.02
-# x_max <- x_max  * 1.02
-# y_min <- y_min * 1.02
-# y_max <- y_max * 1.02
-
-# Retrieve the different roads based on size
-big_streets <- cc %>%
-  opq()%>%
+# Get the featurues to be mapped
+big_streets <- placebb %>% 
+  opq() %>%
   add_osm_feature(key = 'highway', 
                   value = c('motorway', 'primary', 'motorway_link', 'primary_link')) %>%
   osmdata_sf()
 
-med_streets <- cc%>%
-  opq()%>%
-  add_osm_feature(key = "highway", 
-                  value = c("secondary", "tertiary", "secondary_link", "tertiary_link")) %>%
+med_streets <- placebb %>%
+  opq() %>%
+  add_osm_feature(key = 'highway', 
+                  value = c('secondary', 'tertiary', 'secondary_link', 'tertiary_link')) %>%
   osmdata_sf()
 
-small_streets <- cc%>%
-  opq()%>%
-  add_osm_feature(key = "highway", 
-                  value = c("residential", "living_street",
-                            "footway"
-                  )) %>%
+small_streets <- placebb %>% 
+  opq() %>%
+  add_osm_feature(key = 'highway', 
+                  value = c('residential', 'living_street', 'unclassified', 'footway')) %>%
   osmdata_sf()
 
-# Retrieve other features suchs as rivers and railways
-river <- cc%>%
-  opq()%>%
-  add_osm_feature(key = "waterway", value = "river") %>%
-  osmdata_sf()
-
-railway <- cc%>%
-  opq()%>%
-  add_osm_feature(key = "railway", value="rail") %>%
-  osmdata_sf()
-
-# Create the plot
-cc_plot <- ggplot() +
-  geom_sf(data = river$osm_lines,
+# First plot
+ggplot() +
+  geom_sf(data = big_streets$osm_lines, 
           inherit.aes = FALSE,
-          color = "steelblue",
-          size = 15,
-          alpha = 1) +
-  geom_sf(data = railway$osm_lines,
+          color = 'black')
+
+# Second plot
+ggplot() +
+  geom_sf(data = small_streets$osm_lines,
           inherit.aes = FALSE,
-          color = "black",
-          size = .2,
-          linetype="dotdash",
-          alpha = .5) +
+          color = '#D9D9D9',
+          size = 0.2,
+          alpha = 0.5) +
   geom_sf(data = med_streets$osm_lines,
           inherit.aes = FALSE,
-          color = "black",
+          color = '#999999',
+          size = 0.3,
+          alpha = 0.5) +
+  geom_sf(data = big_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#222222',
+          size = 0.4,
+          alpha = 0.6)
+
+# Third plot with coord limits
+ggplot() +
+  geom_sf(data = med_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#999999',
           size = .3,
           alpha = .5) +
   geom_sf(data = small_streets$osm_lines,
           inherit.aes = FALSE,
-          color = "#666666",
+          color = '#D9D9D9',
           size = .2,
           alpha = .3) +
   geom_sf(data = big_streets$osm_lines,
           inherit.aes = FALSE,
-          color = "black",
-          size = .5,
+          color = '#222222',
+          size = .4,
           alpha = .6) +
-  coord_sf(xlim = c(x_min, x_max),
-           ylim = c(y_min, y_max),
-           expand = FALSE)+
+  coord_sf(xlim = c(-103.41, -103.28), 
+           ylim = c(20.60, 20.75),
+           expand = FALSE)
+
+# Fourth plot
+ggplot() +
+  geom_sf(data = med_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#999999',
+          size = .3,
+          alpha = .5) +
+  geom_sf(data = small_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#D9D9D9',
+          size = .2,
+          alpha = .3) +
+  geom_sf(data = big_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#222222',
+          size = .4,
+          alpha = .6) +
+  coord_sf(xlim = c(-103.41, -103.28), 
+           ylim = c(20.60, 20.75),
+           expand = FALSE)  +
   theme_void() + # get rid of background color, grid lines, etc.
-  theme(plot.title = element_text(size = 50, family = "helvetica", face="bold", hjust=.5),
-        plot.subtitle = element_text(family = "helvetica", size = 20, hjust=.5, margin=margin(2, 0, 5, 0))) +
-  labs(title = toupper(city), subtitle = paste0(x_max, ' / ', y_max))
+  theme(plot.title = element_text(size = 20,
+                                  family = 'Spline Sans',
+                                  hjust = 0.5,
+                                  color = '#222222'),
+        plot.subtitle = element_text(size = 8,
+                                     family = 'Spline Sans Mono',
+                                     hjust = 0.5,
+                                     color = '#222222',
+                                     margin=margin(2, 0, 5, 0))) +
+  labs(title = 'Guadalajara',
+       subtitle = '20.690°N / 103.368°W')
 
-print(cc_plot)
+# Municipal boundaries
+all_boundaries <- opq(place) %>%
+  add_osm_feature(key = 'boundary', 
+                  value = c('administrative')) %>%
+  osmdata_sf() %>% 
+  unname_osmdata_sf() %>% 
+  .$osm_multipolygons
 
-# # Save the plot as SVG for futher editing
-# ggsave("cc.svg", plot = cc_plot, device = "svg", width = 18, height = 24, units = "in")  
+ggplot(data = all_boundaries) + 
+  geom_sf()
 
-# # Save the plot as a PDF file with a specified width and height
-# ggsave("cc_plot.pdf", plot = cc_plot, device = "pdf", width = 18, height = 24, units = "in")
-# 
-# # Save the plot as a PNG file with a specified width and height
-# ggsave("cc_plot.png", plot = cc_plot, device = "png", width = 6, height = 8, units = "in")
+# Correct boundaries
+boundary <- all_boundaries %>% 
+  filter(osm_id == 5605820) %>% # This is the specific osm_id for the municipality of Guadalajara
+  dplyr::select()
+
+ggplot(data = boundary) + 
+  geom_sf()
+
+# Extract the lines from the streets objects
+big_streets_lines <- big_streets$osm_lines
+med_streets_lines <- med_streets$osm_lines
+small_streets_lines <- small_streets$osm_lines
+
+# Perform the intersection with the boundary
+big_streets_cropped <- st_intersection(big_streets_lines, boundary)
+med_streets_cropped <- st_intersection(med_streets_lines, boundary)
+small_streets_cropped <- st_intersection(small_streets_lines, boundary)
+
+# Use st_bbox to get the bounding box from the boundary
+bounding_box <- st_bbox(boundary)
+
+# Boundary-shaped map
+gdl <- ggplot() +
+  geom_sf(data = med_streets_cropped,
+          inherit.aes = FALSE,
+          color = '#F08080',
+          size = .3,
+          alpha = .5) +
+  geom_sf(data = small_streets_cropped,
+          inherit.aes = FALSE,
+          color = '#F08080',
+          size = .2,
+          alpha = .3) +
+  geom_sf(data = big_streets_cropped,
+          inherit.aes = FALSE,
+          color = '#F08080',
+          size = .4,
+          alpha = .6) +
+  theme_void() +
+  theme(plot.title = element_text(size = 20,
+                                  family = 'Spline Sans',
+                                  hjust = 0.5,
+                                  color = '#F08080'),
+        plot.subtitle = element_text(size = 8,
+                                     family = 'Spline Sans Mono',
+                                     hjust = 0.5,
+                                     color = '#F08080',
+                                     margin=margin(2, 0, 5, 0))) +
+  labs(title = 'Guadalajara',
+       subtitle = '20.690°N / 103.368°W')
+
+ggsave(file='~/Desktop/test.svg', plot = gdl, width=10, height=8)
+
+# Circle definition
+crs2 <- 6362 # https://epsg.io/6362
+
+center <- c(long = -103.350,
+            lat = 20.659)
+center_proj <- tibble(lat = center['lat'], long = center['long']) %>% 
+  st_as_sf(coords = c('long', 'lat'), crs = 4326) %>%
+  st_transform(crs = crs2)
+
+dist <-  6000
+circle <- tibble(lat = center['lat'], long = center['long']) %>% 
+  st_as_sf(coords = c('long', 'lat'), crs = 4326) %>%
+  st_transform(crs = crs2) %>% 
+  st_buffer(dist = dist) %>% 
+  st_transform(crs = 4326)
+
+ggplot(data = circle) + 
+  geom_sf()
+
+# Circle cropping
+# Perform the intersection with the circle
+big_streets_circle <- st_intersection(big_streets_lines, circle)
+med_streets_circle <- st_intersection(med_streets_lines, circle)
+small_streets_circle <- st_intersection(small_streets_lines, circle)
+
+# Use st_bbox to get the bounding box from the circle
+bounding_box_circle <- st_bbox(circle)
+
+# Circle map
+ggplot() +
+  geom_sf(data = med_streets_circle,
+          inherit.aes = FALSE,
+          color = '#999999',
+          size = .3,
+          alpha = .5) +
+  geom_sf(data = small_streets_circle,
+          inherit.aes = FALSE,
+          color = '#D9D9D9',
+          size = .2,
+          alpha = .3) +
+  geom_sf(data = big_streets_circle,
+          inherit.aes = FALSE,
+          color = '#222222',
+          size = .4,
+          alpha = .6) +
+  theme_void() +
+  theme(plot.title = element_text(size = 20,
+                                  family = 'Spline Sans',
+                                  hjust = 0.5,
+                                  color = '#222222'),
+        plot.subtitle = element_text(size = 8,
+                                     family = 'Spline Sans Mono',
+                                     hjust = 0.5,
+                                     color = '#222222',
+                                     margin=margin(2, 0, 5, 0))) +
+  labs(title = 'Guadalajara',
+       subtitle = '20.690°N / 103.368°W')

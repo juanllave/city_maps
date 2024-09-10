@@ -1,0 +1,363 @@
+---
+title: 'Pretty Street Maps'
+author: 'Juan Lozano Vallejo'
+format: html
+---
+
+## Introduction
+
+This article will be all about maps using R, specifically using the `osmdata` package that allows us to work with [Open Street Map](https://www.openstreetmap.org/#map=3/71.34/-96.82) (OSM) information directly from R. I am leaning heavily on Josh McCrain's [Pretty street maps in R with the osmdata package and ggplot](https://joshuamccrain.com/tutorials/maps/streets_tutorial.html) and from Taras Kaduk's [Print Personalized Street Maps Using R](https://taraskaduk.com/posts/2021-01-18-print-street-maps/). While McCrain's tutorial is excellent to craft the maps, Kaduk's is best when it comes to delimiting the maps. In this article I will be using both methods.
+
+## The Process
+As always, we begin by loading the required libraries. `tidyverse` and `osmdata` are the heroes for this kind of tasks.
+```{r}
+#| echo: true
+#| message: false
+#| output: false
+
+# Load libraries
+library(tidyverse) # Clean, manipulate, and visualize data efficiently.
+library(osmdata) # Extract geographic data from.
+library(showtext) # To customize fonts
+library(ggmap) # Create maps with geographic data.
+library(rvest) # Scrape web pages for data.
+library(sf) # To work  with simple features (geometry, attributes).
+library(raster) # Handle raster data (images, grids).
+library(lwgeom) # Perform advanced geometry operations.
+```
+
+To keep things simple, I will only focus on roads, but if you wish to know more about the options that `osmdata` has, using `available_features()` will list all of the features that are accessible via this package, another incredible resource is OSM's Wiki, particularly the [Map features](https://wiki.openstreetmap.org/wiki/Map_features) page.
+
+After loading the libraries, we define the place that we wish to map, and retrieve the bounding box (bbox), this is geographic rectangle defined by the place's minimum and maximum longitude and latitude coordinates. I will be plotting a map of my hometown, Guadalajara, México.
+
+```{r}
+#| echo: true
+#| message: false
+#| output: false
+
+# Define the place to map
+place <- 'Guadalajara Mexico'
+
+# Get bbbox
+placebb <- getbb(place)
+```
+
+With the place defined, we retrieve the roads by size. As McCrain's notes, these are arbitrary decisions. Note that the feature I am focusing on is `highway`, and from it I am selecting different kind of roads. To know all available options, use `available_tags('highway')`, replacing the word in brackets for the feature of choice will list all tags for the desired feature. For now, I will stick to mapping roads.
+
+```{r}
+#| echo: true
+#| message: false
+#| output: false
+
+# Retrieve roads based on size
+big_streets <- placebb %>% 
+  opq() %>%
+  add_osm_feature(key = 'highway', 
+                  value = c('motorway', 'primary', 'motorway_link', 'primary_link')) %>%
+  osmdata_sf()
+
+med_streets <- placebb %>%
+  opq() %>%
+  add_osm_feature(key = 'highway', 
+                  value = c('secondary', 'tertiary', 'secondary_link', 'tertiary_link')) %>%
+  osmdata_sf()
+
+small_streets <- placebb %>% 
+  opq() %>%
+  add_osm_feature(key = 'highway', 
+                  value = c('residential', 'living_street', 'unclassified', 'footway')) %>%
+  osmdata_sf()
+```
+
+## The Plot
+Now that I have all the features that I wish to map, is time to plot the map using `ggplot2`. This is as easy as writing four lines of code.
+
+```{r}
+#| echo: true
+#| message: false
+#| output: true
+
+ggplot() +
+    geom_sf(data = big_streets$osm_lines, 
+          inherit.aes = FALSE,
+          color = 'black')
+```
+
+Now that we have a basic plot, we can add more layers. Be aware that `ggplot2` does work with layers, so the order in which we add each component has an effect on the final map. In this second iteration of the map I am already playing with colors, line sizes, and line opacity/transparency (alpha). These features can tweaked with pretty much at will.
+
+```{r}
+#| echo: true
+#| message: false
+#| output: true
+
+ggplot() +
+  geom_sf(data = small_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#D9D9D9',
+          size = 0.2,
+          alpha = 0.5) +
+  geom_sf(data = med_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#999999',
+          size = 0.3,
+          alpha = 0.5) +
+    geom_sf(data = big_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#222222',
+          size = 0.4,
+          alpha = 0.6)
+```
+
+This is a nice map,but the problem is that the bbox is too large, so we need to crop it to make it more appealing. The first method I will use is the one proposed by McCrain and it consists in manually adding the coordinate limits to the plot. This is done so by eyeballing the plot, taking note of the limits and adding or subtracting from them until we get the desired limits.
+
+```{r}
+#| echo: true
+#| message: false
+#| output: true
+
+ggplot() +
+  geom_sf(data = med_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#999999',
+          size = .3,
+          alpha = .5) +
+  geom_sf(data = small_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#D9D9D9',
+          size = .2,
+          alpha = .3) +
+  geom_sf(data = big_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#222222',
+          size = .4,
+          alpha = .6) +
+    coord_sf(xlim = c(-103.41, -103.28), 
+           ylim = c(20.60, 20.75),
+           expand = FALSE)
+```
+
+I am happy with these limits, so now I only need to add labels and clean the plot a little.
+
+```{r}
+#| echo: true
+#| message: false
+#| output: true
+
+ggplot() +
+  geom_sf(data = med_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#999999',
+          size = .3,
+          alpha = .5) +
+  geom_sf(data = small_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#D9D9D9',
+          size = .2,
+          alpha = .3) +
+  geom_sf(data = big_streets$osm_lines,
+          inherit.aes = FALSE,
+          color = '#222222',
+          size = .4,
+          alpha = .6) +
+    coord_sf(xlim = c(-103.41, -103.28), 
+           ylim = c(20.60, 20.75),
+           expand = FALSE)  +
+theme_void() + # get rid of background color, grid lines, etc.
+  theme(plot.title = element_text(size = 20,
+                                  family = 'Spline Sans',
+                                  hjust = 0.5,
+                                  color = '#222222'),
+        plot.subtitle = element_text(size = 8,
+                                     family = 'Spline Sans Mono',
+                                     hjust = 0.5,
+                                     color = '#222222',
+                                     margin=margin(2, 0, 5, 0))) +
+  labs(title = 'Guadalajara',
+       subtitle = '20.690°N / 103.368°W')
+```
+
+Please note that the coordinates shown in the subtitle are not the geographical center of Guadalajara, but the coordinates to a place that I love that might as well be the center of the Universe.
+
+This is a nice, pretty map. But I want to explore other cropping alternatives.
+
+## Other Cropping Solutions
+
+These approaches come from Kaduk's tutorial. He offers an option to crop via the place's administrative boundaries, one more using a circle, and the last one creates a rectangle, since this final approach results are somewhat similar to the method used above, I will not go into it now.
+
+The first approach is to go by the city borders as defined by OSM, so I need to retrieve those first.
+
+```{r}
+#| echo: true
+#| message: false
+#| output: true
+
+all_boundaries <- opq(place) %>%
+  add_osm_feature(key = 'boundary', 
+                  value = c('administrative')) %>%
+  osmdata_sf() %>% 
+  unname_osmdata_sf() %>% 
+  .$osm_multipolygons
+
+ggplot(data = all_boundaries) + 
+  geom_sf()
+```
+
+As we can see, the limits show way more than we need as they include the state of Jalisco and Guadalajara's metropolitan area limits as well, but we only want to work the municipality of Guadalajara. After inspecting the data, I need to filter by `osm_id` to get the specific boundary I need, and store it as a new object.
+
+```{r}
+#| echo: true
+#| message: false
+#| output: true
+
+boundary <- all_boundaries %>% 
+  filter(osm_id == 5605820) %>% # This is the specific osm_id for the municipality of Guadalajara
+  dplyr::select()
+
+ggplot(data = boundary) + 
+  geom_sf()
+```
+
+After visualizing this new boundary, I can confirm that this is indeed the shape I was looking for. I now need to crop my streets objects to the limits established by the boundary object we just created. This is a multi-step process.
+
+```{r}
+#| echo: true
+#| message: false
+#| output: false
+
+# Extract the lines from the streets objects
+big_streets_lines <- big_streets$osm_lines
+med_streets_lines <- med_streets$osm_lines
+small_streets_lines <- small_streets$osm_lines
+
+# Perform the intersection with the boundary
+big_streets_cropped <- st_intersection(big_streets_lines, boundary)
+med_streets_cropped <- st_intersection(med_streets_lines, boundary)
+small_streets_cropped <- st_intersection(small_streets_lines, boundary)
+
+# Use st_bbox to get the bounding box from the boundary
+bounding_box <- st_bbox(boundary)
+```
+
+Once this is done, we can plot again using pretty much the same lines of code we used before.
+
+```{r}
+#| echo: true
+#| message: false
+#| output: true
+
+ggplot() +
+  geom_sf(data = med_streets_cropped,
+          inherit.aes = FALSE,
+          color = '#999999',
+          size = .3,
+          alpha = .5) +
+  geom_sf(data = small_streets_cropped,
+          inherit.aes = FALSE,
+          color = '#D9D9D9',
+          size = .2,
+          alpha = .3) +
+  geom_sf(data = big_streets_cropped,
+          inherit.aes = FALSE,
+          color = '#222222',
+          size = .4,
+          alpha = .6) +
+theme_void() +
+  theme(plot.title = element_text(size = 20,
+                                  family = 'Spline Sans',
+                                  hjust = 0.5,
+                                  color = '#222222'),
+        plot.subtitle = element_text(size = 8,
+                                     family = 'Spline Sans Mono',
+                                     hjust = 0.5,
+                                     color = '#222222',
+                                     margin=margin(2, 0, 5, 0))) +
+  labs(title = 'Guadalajara',
+       subtitle = '20.690°N / 103.368°W')
+```
+
+We now have a very nice map, bounded by the municipality limits of Guadalajara. Now I will explore the circle-cropping approach.
+
+The first step is to get your place's CRS and the coordinates for the place you wish to use as center. A Google search can help with this. You'll also need to define the radius of the circle, in meters. Contrary to the coordinates shown in the label, for this process I am using Guadalajara's geographical coordinates. 
+
+```{r}
+#| echo: true
+#| message: false
+#| output: true
+
+crs2 <- 6362 # https://epsg.io/6362
+
+center <- c(long = -103.350,
+            lat = 20.659)
+center_proj <- tibble(lat = center['lat'], long = center['long']) %>% 
+  st_as_sf(coords = c('long', 'lat'), crs = 4326) %>%
+  st_transform(crs = crs2)
+
+dist <-  6000
+circle <- tibble(lat = center['lat'], long = center['long']) %>% 
+  st_as_sf(coords = c('long', 'lat'), crs = 4326) %>%
+  st_transform(crs = crs2) %>% 
+  st_buffer(dist = dist) %>% 
+  st_transform(crs = 4326)
+
+ggplot(data = circle) + 
+  geom_sf()
+```
+
+After the circle has been drawn, I need to crop the streets to a circular shape, similarly to what was done with the boundary.
+```{r}
+#| echo: true
+#| message: false
+#| output: false
+
+# Perform the intersection with the circle
+big_streets_circle <- st_intersection(big_streets_lines, circle)
+med_streets_circle <- st_intersection(med_streets_lines, circle)
+small_streets_circle <- st_intersection(small_streets_lines, circle)
+
+# Use st_bbox to get the bounding box from the circle
+bounding_box_circle <- st_bbox(circle)
+```
+
+Finally, we plot the map again with the streets cropped to the size of the circle.
+
+```{r}
+#| echo: true
+#| message: false
+#| output: true
+
+ggplot() +
+  geom_sf(data = med_streets_circle,
+          inherit.aes = FALSE,
+          color = '#999999',
+          size = .3,
+          alpha = .5) +
+  geom_sf(data = small_streets_circle,
+          inherit.aes = FALSE,
+          color = '#D9D9D9',
+          size = .2,
+          alpha = .3) +
+  geom_sf(data = big_streets_circle,
+          inherit.aes = FALSE,
+          color = '#222222',
+          size = .4,
+          alpha = .6) +
+theme_void() +
+  theme(plot.title = element_text(size = 20,
+                                  family = 'Spline Sans',
+                                  hjust = 0.5,
+                                  color = '#222222'),
+        plot.subtitle = element_text(size = 8,
+                                     family = 'Spline Sans Mono',
+                                     hjust = 0.5,
+                                     color = '#222222',
+                                     margin=margin(2, 0, 5, 0))) +
+  labs(title = 'Guadalajara',
+       subtitle = '20.690°N / 103.368°W')
+```
+
+This outcome is also very nice, but my preferred option is the boundary-shaped map.
+
+## Conclusion
+
+Once these maps have been completed, it is possible to export them as svg files to further tweak them using design software such as Adobe Illustrator, Affinity Designer, or Inkspace. I did do so because I was not entirely happy with the title settings.
+
