@@ -92,3 +92,5 @@ yyc <- ggplot() +
                                      margin=margin(2, 0, 5, 0))) +
   labs(title = 'Calgary',
        subtitle = '51.056°N / 114.068°W')
+
+
