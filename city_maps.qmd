@@ -108,7 +108,7 @@ ggplot() +
           alpha = 0.6)
 ```
 
-This is a nice map,but the problem is that the bbox is too large, so we need to crop it to make it more appealing. The first method I will use is the one proposed by McCrain and it consists in manually adding the coordinate limits to the plot. This is done so by eyeballing the plot, taking note of the limits and adding or subtracting from them until we get the desired limits.
+This is a nice map, but the problem is that the bbox is too large, so we need to crop it to make it more appealing. The first method I will use is the one proposed by McCrain and it consists in manually adding the coordinate limits to the plot. This is done so by eyeballing the plot, taking note of the limits and adding or subtracting from them until we get the desired limits.
 
 ```{r}
 #| echo: true
