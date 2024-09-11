@@ -37,7 +37,7 @@ small_streets <- placebb %>%
                   value = c('residential', 'living_street', 'unclassified', 'footway')) %>%
   osmdata_sf()
 
-# Municipal boundaries
+# Place administrative boundaries
 all_boundaries <- opq(place) %>%
   add_osm_feature(key = 'boundary', 
                   value = c('administrative')) %>%
@@ -83,14 +83,12 @@ yyc <- ggplot() +
   theme_void() +
   theme(plot.title = element_text(size = 20,
                                   family = 'Spline Sans',
-                                  hjust = 0,
+                                  hjust = 0.5,
                                   color = '#222222'),
         plot.subtitle = element_text(size = 8,
                                      family = 'Spline Sans Mono',
-                                     hjust = 0,
+                                     hjust = 0.5,
                                      color = '#222222',
                                      margin=margin(2, 0, 5, 0))) +
   labs(title = 'Calgary',
        subtitle = '51.056°N / 114.068°W')
-
-
