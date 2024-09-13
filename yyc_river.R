@@ -110,11 +110,12 @@ yyc <- ggplot() +
           size = 0.4,
           alpha = 0.6) +
   theme_void() +
-  theme(plot.title = element_text(size = 20,
+  theme_minimal(base_size = 12) +
+  theme(plot.title = element_text(size = rel(2),
                                   family = 'Spline Sans',
                                   hjust = 0.5,
                                   color = '#222222'),
-        plot.subtitle = element_text(size = 8,
+        plot.subtitle = element_text(size = rel(1),
                                      family = 'Spline Sans Mono',
                                      hjust = 0.5,
                                      color = '#222222',
